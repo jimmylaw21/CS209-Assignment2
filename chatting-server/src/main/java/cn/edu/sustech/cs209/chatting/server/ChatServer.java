@@ -1,6 +1,7 @@
 package cn.edu.sustech.cs209.chatting.server;
 
 import cn.edu.sustech.cs209.chatting.common.Group;
+import cn.edu.sustech.cs209.chatting.common.Message;
 
 import java.io.*;
 import java.net.*;
@@ -15,6 +16,7 @@ public class ChatServer {
     private ServerSocket serverSocket;
     private ExecutorService executorService;
     private Set<ClientHandler> clients;
+
     private Set<Group> groups;
 
     public ChatServer(int port) {
@@ -44,6 +46,24 @@ public class ChatServer {
             }
         } catch (IOException e) {
             e.printStackTrace();
+        } finally {
+            try {
+                // 向所有客户端发送服务器关闭的消息
+                for (ClientHandler client : clients) {
+                    client.sendMessageToClient(new Message(System.currentTimeMillis(), "Server", client.getClientName(), "Server is shutting down"));
+                }
+                // 等待10秒，让客户端接收到消息，然后移除客户端
+                Thread.sleep(10000);
+                for (ClientHandler client : clients) {
+                    removeClient(client);
+                }
+                executorService.shutdown();
+                serverSocket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 
@@ -88,5 +108,9 @@ public class ChatServer {
 
     public Set<ClientHandler> getClients() {
         return clients;
+    }
+
+    public Set<Group> getGroups() {
+        return groups;
     }
 }

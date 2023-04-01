@@ -1,5 +1,6 @@
 package cn.edu.sustech.cs209.chatting.client;
 
+import cn.edu.sustech.cs209.chatting.common.Group;
 import cn.edu.sustech.cs209.chatting.common.Message;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -10,6 +11,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 import javafx.util.Callback;
@@ -64,7 +66,10 @@ public class Controller implements Initializable {
 
         chatList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
-                chatContentList.getItems().setAll(newValue.getMessages());
+                chatContentList.getItems().clear(); // 清空chatContentList
+                chatContentList.getItems().setAll(newValue.getMessages()); // 加载新选择的群组信息
+            } else {
+                chatContentList.getItems().clear(); // 如果没有选中任何群组，仍然清空chatContentList
             }
         });
 
@@ -92,8 +97,7 @@ public class Controller implements Initializable {
         stage.setScene(new Scene(box)); //设置舞台的场景
         stage.showAndWait(); //显示舞台并等待
 
-        // TODO: if the current user already chatted with the selected user, just open the chat with that user
-        // TODO: otherwise, create a new chat item in the left panel, the title should be the selected user's name
+        // TODO: the title should be the selected user's name
 
         String selectedUser = user.get();
         boolean chatExists = false;
@@ -110,9 +114,9 @@ public class Controller implements Initializable {
             List<String> chatMembers = new ArrayList<>();
             chatMembers.add(client.username);
             chatMembers.add(selectedUser);
-            ChatGroup chatGroup = new ChatGroup(selectedUser, chatMembers);
+            ChatGroup chatGroup = new ChatGroup(client.username,chatMembers.toString(), chatMembers);
             chatList.getItems().add(chatGroup);
-
+            sendGroup(chatGroup);
             //切换到新建的聊天
             chatList.getSelectionModel().selectLast();
         }
@@ -130,6 +134,47 @@ public class Controller implements Initializable {
      */
     @FXML
     public void createGroupChat() {
+        AtomicReference<List<String>> users = new AtomicReference<>(); //原子引用
+
+        Stage stage = new Stage(); //新建一个舞台
+        ListView<String> userList = new ListView<>(); //新建一个列表视图
+        userList.getSelectionModel().setSelectionMode(SelectionMode.MULTIPLE); //设置列表视图的选择模式为多选
+        userList.getItems().addAll(getFilteredUserList()); //将用户列表添加到列表视图中
+
+        Button okBtn = new Button("OK"); //新建一个按钮
+        okBtn.setOnAction(e -> {
+            users.set(userList.getSelectionModel().getSelectedItems()); //设置原子引用的值
+            stage.close(); //关闭舞台
+        });
+
+        VBox box = new VBox(10); //新建一个垂直盒子
+        box.setAlignment(Pos.CENTER); //设置盒子的对齐方式
+        box.setPadding(new Insets(30, 30, 30, 30)); //设置盒子的内边距
+        box.getChildren().addAll(userList, okBtn);   //将列表视图和按钮添加到盒子中
+        stage.setScene(new Scene(box)); //设置舞台的场景
+        stage.showAndWait(); //显示舞台并等待
+
+        // TODO: the title needs to be generated according to the naming rule
+
+        List<String> selectedUsers = users.get();
+        boolean chatExists = false;
+        for (ChatGroup ChatGroup : chatList.getItems()) {
+            if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().containsAll(selectedUsers)) {
+                chatExists = true;
+
+                chatList.getSelectionModel().select(ChatGroup);
+                break;
+            }
+        }
+        if (!chatExists) {
+            List<String> chatMembers = new ArrayList<>();
+            chatMembers.add(client.username);
+            chatMembers.addAll(selectedUsers);
+            ChatGroup chatGroup = new ChatGroup(client.username,chatMembers.toString(), chatMembers);
+            chatList.getItems().add(chatGroup);
+            sendGroup(chatGroup);
+            chatList.getSelectionModel().selectLast();
+        }
     }
 
     /**
@@ -147,8 +192,9 @@ public class Controller implements Initializable {
         }
         ChatGroup activeChat = chatList.getSelectionModel().getSelectedItem();
         //sendTo为
-        Message message = new Message(System.currentTimeMillis(), client.username, activeChat.toString(), messageText);
+        Message message = new Message(System.currentTimeMillis(), client.username, activeChat.getChatName(), messageText);
         activeChat.getMessages().add(message);
+        chatContentList.getItems().setAll(activeChat.getMessages());
         client.sendMessage(message);
         inputArea.clear();
     }
@@ -204,7 +250,7 @@ public class Controller implements Initializable {
                     if (empty || ChatGroup == null) {
                         setText(null);
                     } else {
-                        setText(ChatGroup.getChatMembers().get(1));
+                        setText(ChatGroup.getChatName());
                     }
                 }
             };
@@ -215,6 +261,19 @@ public class Controller implements Initializable {
         try {
             Message message = new Message(System.currentTimeMillis(), client.username, sendTo, messageContent);
             client.sendMessage(message);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendGroup(ChatGroup chatGroup) {
+        try {
+            Group group = new Group(chatGroup.getCreator(), chatGroup.getChatName(), chatGroup.getChatMembers());
+            //将chatGroup中的消息加进group中
+            for (Message message : chatGroup.getMessages()) {
+                group.addMessage(message);
+            }
+            client.sendGroup(group);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -265,7 +324,7 @@ public class Controller implements Initializable {
         });
 
         Optional<String> input = dialog.showAndWait();
-        sendMessage("AllClientNames","server");
+        sendMessage("AllClientNames","Server");
 
         lock.lock();
 
@@ -287,13 +346,13 @@ public class Controller implements Initializable {
 
         client.username = input.get();
 
-        sendMessage("clientName:"+input.get(),"server");
+        sendMessage("clientName:"+input.get(),"Server");
     }
     /**
      * 从服务器获取所有用户的列表，然后过滤掉当前用户自己。
      */
     public List<String> getFilteredUserList() {
-        sendMessage("AllClientNames","server");
+        sendMessage("AllClientNames","Server");
 
         lock.lock();
         List<String> filteredUserList = new ArrayList<>();
@@ -304,7 +363,6 @@ public class Controller implements Initializable {
                     filteredUserList.add(name);
                 }
             }
-            System.out.println("filteredUserList: " + filteredUserList);
         } catch (InterruptedException e) {
             e.printStackTrace();
         } finally {
@@ -314,7 +372,28 @@ public class Controller implements Initializable {
         return filteredUserList;
     }
 
+    public void onReceiveMessage(Message message) {
+        Platform.runLater(() -> {
+            ChatGroup activeChat = chatList.getSelectionModel().getSelectedItem();
+            if (activeChat.getChatName().equals(message.getSendTo())) {
+                chatContentList.getItems().setAll(activeChat.getMessages());
+            }
+        });
+    }
+
+
     public void stop() {
         client.stop();
+    }
+
+    public void onServerShutdown() {
+        Platform.runLater(() -> {
+            Alert alert = new Alert(Alert.AlertType.ERROR);
+            alert.setTitle("Error");
+            alert.setHeaderText("Server is shutting down");
+            alert.setContentText("The server is shutting down, please try again later.");
+            alert.showAndWait();
+            Platform.exit();
+        });
     }
 }

@@ -1,10 +1,12 @@
 package cn.edu.sustech.cs209.chatting.client;
 
+import cn.edu.sustech.cs209.chatting.common.Group;
 import cn.edu.sustech.cs209.chatting.common.Message;
 
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
+import java.util.Optional;
 
 public class ChatClient implements Runnable{
     private Socket socket;
@@ -28,9 +30,14 @@ public class ChatClient implements Runnable{
             in = new ObjectInputStream(socket.getInputStream());
 
             while (true) {
-                Message message = (Message) in.readObject();
-
-                HandleServerMessage(message);
+                Object receivedObject = in.readObject();
+                if (receivedObject instanceof Message) {
+                    Message message = (Message) receivedObject;
+                    HandleServerMessage(message);
+                }else if (receivedObject instanceof Group) {
+                    Group group = (Group) receivedObject;
+                    HandleServerGroup(group);
+                }
             }
         } catch (SocketException e) {
             System.out.println("Client disconnected: " + socket.getInetAddress().getHostAddress());
@@ -45,6 +52,7 @@ public class ChatClient implements Runnable{
                 in.close();
                 out.close();
                 socket.close();
+                controller.onServerShutdown();
             } catch (IOException e) {
                 e.printStackTrace();
             }
@@ -57,14 +65,38 @@ public class ChatClient implements Runnable{
         out.writeObject(message);
     }
 
+    public void sendGroup(Group group) throws IOException {
+        out.writeObject(group);
+    }
+
     public void HandleServerMessage(Message message) throws IOException {
-        // 如果客户端发送了“clientName:”， 则服务器端将客户端的名字设置为发送的名字
-        if (message.getData().startsWith("allClientsNames:")) {
-            controller.updateClientList(
-                    message.getData().substring("allClientsNames:".length()).split(" "));
-            return;
+        if(message.getSentBy().equals("Server")) {
+            // 如果客户端发送了“clientName:”， 则服务器端将客户端的名字设置为发送的名字
+            if (message.getData().startsWith("allClientsNames:")) {
+                controller.updateClientList(
+                        message.getData().substring("allClientsNames:".length()).split(" "));
+                return;
+            }
+            if (message.getData().equals("Server is shutting down")) {
+                controller.onServerShutdown();
+                return;
+            }
+        }
+        // 使用stream获取controller中ListView<ChatGroup> chatList里的群组，其名字与message中的sendTo相同
+        Optional<ChatGroup> chatGroup = controller.chatList.getItems().stream()
+                .filter(group -> group.getChatName().equals(message.getSendTo()))
+                .findFirst();
+        // 如果找到了群组，则将message添加到群组的聊天记录中
+        if (chatGroup.isPresent()) {
+            chatGroup.get().addMessage(message);
+            controller.onReceiveMessage(message);
         }
 
+    }
+
+    public void HandleServerGroup(Group group) throws IOException {
+        // 将group添加到controller中的ListView<ChatGroup> chatList中
+        controller.chatList.getItems().add(new ChatGroup(group));
     }
 
     public void stop() {

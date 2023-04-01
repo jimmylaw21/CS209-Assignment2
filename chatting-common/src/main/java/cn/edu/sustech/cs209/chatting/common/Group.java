@@ -5,33 +5,56 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Group implements Serializable {
-    private String chatName;
-    private List<String> chatMembers;
-    private List<Message> messages;
+    private String groupName;
+    private String creator;
+    private List<String> groupMembers;
+    private List<Message> groupMessages;
 
-    public Group(List<String> chatMembers) {
-        this.chatMembers = chatMembers;
-        this.messages = new ArrayList<>();
+    public Group(String creator, String groupName, List<String> groupMembers) {
+        this.creator = creator;
+        this.groupName = groupName;
+        this.groupMembers = groupMembers;
+        this.groupMessages = new ArrayList<>();
     }
 
-    public List<String> getChatMembers() {
-        return chatMembers;
+    public List<String> getGroupMembers() {
+        return groupMembers;
     }
 
-    public void setChatMembers(List<String> chatMembers) {
-        this.chatMembers = chatMembers;
+    public void setGroupMembers(List<String> chatMembers) {
+        this.groupMembers = chatMembers;
     }
 
     public void addMessage(Message message) {
-        messages.add(message);
+        groupMessages.add(message);
     }
 
-    public List<Message> getMessages() {
-        return messages;
+    public List<Message> getGroupMessages() {
+        return groupMessages;
+    }
+
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public void setGroupName(String chatName) {
+        this.groupName = chatName;
+    }
+
+    public void setGroupMessages(List<Message> messages) {
+        this.groupMessages = messages;
+    }
+
+    public String getCreator() {
+        return creator;
+    }
+
+    public void setCreator(String creator) {
+        this.creator = creator;
     }
 
     @Override
     public String toString() {
-        return "Group{" + "chatMembers=" + chatMembers + ", messages=" + messages + '}';
+        return "Group{" + "chatMembers=" + groupMembers + ", messages=" + groupMessages + '}';
     }
 }
