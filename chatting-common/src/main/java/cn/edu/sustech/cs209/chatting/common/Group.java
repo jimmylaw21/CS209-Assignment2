@@ -7,14 +7,16 @@ import java.util.List;
 public class Group implements Serializable {
     private String groupName;
     private String creator;
+    private GroupType groupType;
     private List<String> groupMembers;
     private List<Message> groupMessages;
 
-    public Group(String creator, String groupName, List<String> groupMembers) {
+    public Group(String creator, String groupName, List<String> groupMembers, GroupType groupType) {
         this.creator = creator;
         this.groupName = groupName;
         this.groupMembers = groupMembers;
         this.groupMessages = new ArrayList<>();
+        this.groupType = groupType; // 设置groupType
     }
 
     public List<String> getGroupMembers() {
@@ -53,8 +55,17 @@ public class Group implements Serializable {
         this.creator = creator;
     }
 
+    public GroupType getGroupType() {
+        return groupType;
+    }
+
+    public void setGroupType(GroupType groupType) {
+        this.groupType = groupType;
+    }
+
+
     @Override
     public String toString() {
-        return "Group{" + "chatMembers=" + groupMembers + ", messages=" + groupMessages + '}';
+        return "Group{" + "groupName=" + groupName + ", creator=" + creator + ", groupType=" + groupType + ", groupMembers=" + groupMembers + ", groupMessages=" + groupMessages + '}';
     }
 }

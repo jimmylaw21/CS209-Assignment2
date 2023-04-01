@@ -2,6 +2,7 @@ package cn.edu.sustech.cs209.chatting.client;
 
 import cn.edu.sustech.cs209.chatting.common.Group;
 import cn.edu.sustech.cs209.chatting.common.Message;
+import cn.edu.sustech.cs209.chatting.common.GroupType;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 
@@ -11,14 +12,17 @@ public class ChatGroup {
 
     private String chatName;
     private String creator;
+    private GroupType groupType;
     private List<String> chatMembers;
     private ObservableList<Message> messages;
 
-    public ChatGroup(String creator, String chatName, List<String> chatMembers) {
+
+    public ChatGroup(String creator, String chatName, List<String> chatMembers, GroupType groupType) {
         this.creator = creator;
         this.chatName = chatName;
         this.chatMembers = chatMembers;
         this.messages = FXCollections.observableArrayList();
+        this.groupType = groupType;
     }
 
     public ChatGroup(Group group) {
@@ -26,6 +30,7 @@ public class ChatGroup {
         this.chatName = group.getGroupName();
         this.chatMembers = group.getGroupMembers();
         this.messages = FXCollections.observableArrayList(group.getGroupMessages());
+        this.groupType = group.getGroupType();
     }
 
     public List<String> getChatMembers() {
@@ -62,6 +67,14 @@ public class ChatGroup {
 
     public void setCreator(String creator) {
         this.creator = creator;
+    }
+
+    public GroupType getGroupType() {
+        return groupType;
+    }
+
+    public void setGroupType(GroupType groupType) {
+        this.groupType = groupType;
     }
 }
 

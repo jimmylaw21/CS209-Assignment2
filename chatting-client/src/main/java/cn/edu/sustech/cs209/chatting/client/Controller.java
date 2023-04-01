@@ -1,6 +1,7 @@
 package cn.edu.sustech.cs209.chatting.client;
 
 import cn.edu.sustech.cs209.chatting.common.Group;
+import cn.edu.sustech.cs209.chatting.common.GroupType;
 import cn.edu.sustech.cs209.chatting.common.Message;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
@@ -24,6 +25,13 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+// 写Javadoc注释，解释每个类、方法、变量的作用
+
+/**
+ * Controller类负责处理JavaFX聊天应用程序的用户界面交互。
+ * 它实现了Initializable接口，以便在FXML文件加载后执行初始化操作。
+ * 这个类包含了聊天组列表、聊天内容列表和输入框等UI组件，以及处理客户端通信的ChatClient对象。
+ */
 public class Controller implements Initializable {
 
     @FXML
@@ -35,16 +43,17 @@ public class Controller implements Initializable {
     @FXML
     TextArea inputArea; //消息输入框
 
-    ChatClient client;
+    ChatClient client; // 负责处理与服务器的通信
 
-    String[] allClientNames;
+    String[] allClientNames; // 存储所有在线客户端的名称
 
-    private final Lock lock = new ReentrantLock();
-    private final Condition namesUpdated = lock.newCondition();
+    private final Lock lock = new ReentrantLock(); // 用于同步allClientNames数组的锁
+    private final Condition namesUpdated = lock.newCondition(); // 与锁相关的条件变量，用于等待allClientNames更新
 
     /**
      * 初始化聊天客户端界面，连接到聊天服务器并设置用户名。
-     *
+     * 在FXML文件加载后初始化UI组件和事件监听器。
+     * 该方法将在FXML加载器调用load方法后自动调用。
      * @param url               被初始化的FXML文档的位置，或者如果该位置未知，则为null。
      * @param resourceBundle    用于本地化根对象的资源束，如果根对象未本地化，则为null。
      */
@@ -75,6 +84,13 @@ public class Controller implements Initializable {
 
     }
 
+    /**
+     * 创建一个与选定用户的私人聊天，或在已有的私人聊天中打开选定用户的聊天。
+     * 此方法创建一个新的JavaFX舞台，其中包含一个用于选择在线用户的下拉框和一个确定按钮。
+     * 用户通过下拉框选择与之建立私人聊天的目标用户，然后点击确定按钮以创建或打开私人聊天。
+     * 如果与选定用户的私人聊天已经存在，此方法会直接打开该私人聊天。
+     * 否则，将创建一个新的私人聊天，并将其添加到聊天组列表中。
+     */
     @FXML
     public void createPrivateChat() {
         AtomicReference<String> user = new AtomicReference<>(); //原子引用
@@ -103,7 +119,7 @@ public class Controller implements Initializable {
         boolean chatExists = false;
         for (ChatGroup ChatGroup : chatList.getItems()) {
             //如果ChatGroup.getChatMembers()(String类型)里包含自己和选中的用户，就打开这个聊天
-            if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().contains(selectedUser)) {
+            if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().contains(selectedUser) && ChatGroup.getGroupType() == GroupType.PRIVATE) {
                 chatExists = true;
                 // TODO: Open the chat with the selected user
                 chatList.getSelectionModel().select(ChatGroup);
@@ -114,7 +130,8 @@ public class Controller implements Initializable {
             List<String> chatMembers = new ArrayList<>();
             chatMembers.add(client.username);
             chatMembers.add(selectedUser);
-            ChatGroup chatGroup = new ChatGroup(client.username,chatMembers.toString(), chatMembers);
+            System.out.println(chatMembers.toString());
+            ChatGroup chatGroup = new ChatGroup(client.username, chatMembers.toString(), chatMembers, GroupType.PRIVATE);
             chatList.getItems().add(chatGroup);
             sendGroup(chatGroup);
             //切换到新建的聊天
@@ -159,7 +176,7 @@ public class Controller implements Initializable {
         List<String> selectedUsers = users.get();
         boolean chatExists = false;
         for (ChatGroup ChatGroup : chatList.getItems()) {
-            if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().containsAll(selectedUsers)) {
+            if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().containsAll(selectedUsers) && ChatGroup.getGroupType() == GroupType.GROUP) {
                 chatExists = true;
 
                 chatList.getSelectionModel().select(ChatGroup);
@@ -170,7 +187,8 @@ public class Controller implements Initializable {
             List<String> chatMembers = new ArrayList<>();
             chatMembers.add(client.username);
             chatMembers.addAll(selectedUsers);
-            ChatGroup chatGroup = new ChatGroup(client.username,chatMembers.toString(), chatMembers);
+            System.out.println(chatMembers.toString());
+            ChatGroup chatGroup = new ChatGroup(client.username,chatMembers.toString(), chatMembers, GroupType.GROUP);
             chatList.getItems().add(chatGroup);
             sendGroup(chatGroup);
             chatList.getSelectionModel().selectLast();
@@ -203,7 +221,16 @@ public class Controller implements Initializable {
      * You may change the cell factory if you changed the design of {@code Message} model.
      * Hint: you may also define a cell factory for the chats displayed in the left panel, or simply override the toString method.
      */
+    /**
+     * MessageCellFactory是一个私有类，用于定制聊天内容列表中的消息单元格。
+     * 它实现了Callback接口，以自定义ListView中消息的显示方式。
+     */
     private class MessageCellFactory implements Callback<ListView<Message>, ListCell<Message>> {
+        /**
+         * 用于创建列表单元格的回调方法。
+         * @param param 消息列表视图。
+         * @return 定制后的消息列表单元格。
+         */
         @Override
         public ListCell<Message> call(ListView<Message> param) { //回调函数
             return new ListCell<Message>() {
@@ -240,7 +267,16 @@ public class Controller implements Initializable {
         }
     }
 
+    /**
+     * ChatGroupCellFactory是一个公共类，用于定制聊天组列表中的聊天组单元格。
+     * 它实现了Callback接口，以自定义ListView中聊天组的显示方式。
+     */
     public class ChatGroupCellFactory implements Callback<ListView<ChatGroup>, ListCell<ChatGroup>> {
+        /**
+         * 用于创建聊天组列表单元格的回调方法。
+         * @param param 聊天组列表视图。
+         * @return 定制后的聊天组列表单元格。
+         */
         @Override
         public ListCell<ChatGroup> call(ListView<ChatGroup> param) {
             return new ListCell<ChatGroup>() {
@@ -250,13 +286,36 @@ public class Controller implements Initializable {
                     if (empty || ChatGroup == null) {
                         setText(null);
                     } else {
-                        setText(ChatGroup.getChatName());
+                        //用lambda表达式，若ChatName是类似[a, b, c]的形式
+                        if (ChatGroup.getChatName().startsWith("[") && ChatGroup.getChatName().endsWith("]")){
+                            if (ChatGroup.getGroupType().equals(GroupType.GROUP)){
+                                if (ChatGroup.getChatMembers().size() <= 3) {
+                                    setText(ChatGroup.getChatName().substring(1, ChatGroup.getChatName().length() - 1));
+                                } else {
+                                    setText(ChatGroup.getChatName().substring(1, ChatGroup.getChatName().length() - 1).split(", ")[0]
+                                            + ", " + ChatGroup.getChatName().substring(1, ChatGroup.getChatName().length() - 1).split(", ")[1]
+                                            + ", " + ChatGroup.getChatName().substring(1, ChatGroup.getChatName().length() - 1).split(", ")[2]
+                                            + ", ...");
+                                }
+                            } else if (ChatGroup.getGroupType().equals(GroupType.PRIVATE)){
+                                String otherUser = ChatGroup.getChatMembers().get(0).equals(client.username) ? ChatGroup.getChatMembers().get(1) : ChatGroup.getChatMembers().get(0);
+                                setText(otherUser);
+                            }
+                        }else{
+                            //否则直接显示ChatName(自定义)
+                            setText(ChatGroup.getChatName());
+                        }
                     }
                 }
             };
         }
     }
 
+    /**
+     * 发送消息给指定的接收者。
+     * @param messageContent 要发送的消息内容。
+     * @param sendTo 消息的接收者。
+     */
     public void sendMessage(String messageContent, String sendTo) {
         try {
             Message message = new Message(System.currentTimeMillis(), client.username, sendTo, messageContent);
@@ -266,9 +325,13 @@ public class Controller implements Initializable {
         }
     }
 
+    /**
+     * 发送整个聊天组（包括聊天记录）给服务器。
+     * @param chatGroup 要发送的聊天组对象。
+     */
     public void sendGroup(ChatGroup chatGroup) {
         try {
-            Group group = new Group(chatGroup.getCreator(), chatGroup.getChatName(), chatGroup.getChatMembers());
+            Group group = new Group(chatGroup.getCreator(), chatGroup.getChatName(), chatGroup.getChatMembers(), chatGroup.getGroupType());
             //将chatGroup中的消息加进group中
             for (Message message : chatGroup.getMessages()) {
                 group.addMessage(message);
@@ -279,6 +342,10 @@ public class Controller implements Initializable {
         }
     }
 
+    /**
+     * 更新客户端列表。
+     * @param allClientNames 包含所有客户端名称的字符串数组。
+     */
     public void updateClientList(String[] allClientNames) {
         lock.lock();
         try {
@@ -372,6 +439,10 @@ public class Controller implements Initializable {
         return filteredUserList;
     }
 
+    /**
+     * 当收到消息时触发的操作。
+     * @param message 收到的消息对象。
+     */
     public void onReceiveMessage(Message message) {
         Platform.runLater(() -> {
             ChatGroup activeChat = chatList.getSelectionModel().getSelectedItem();
@@ -381,11 +452,13 @@ public class Controller implements Initializable {
         });
     }
 
-
     public void stop() {
         client.stop();
     }
 
+    /**
+     * 当服务器关闭时触发的操作。
+     */
     public void onServerShutdown() {
         Platform.runLater(() -> {
             Alert alert = new Alert(Alert.AlertType.ERROR);
