@@ -1,5 +1,6 @@
 package cn.edu.sustech.cs209.chatting.common;
 
+import java.awt.image.BufferedImage;
 import java.io.Serializable;
 
 public class Message implements Serializable {
@@ -10,6 +11,10 @@ public class Message implements Serializable {
     private String sendTo;
 
     private String data;
+
+    private String fileName;
+
+    private byte[] file;
 
     public Message(Long timestamp, String sentBy, String sendTo, String data) {
         this.timestamp = timestamp;
@@ -38,4 +43,21 @@ public class Message implements Serializable {
     public String toString() {
         return "Message{" + "timestamp=" + timestamp + ", sentBy=" + sentBy + ", sendTo=" + sendTo + ", data=" + data + '}';
     }
+
+    public byte[] getFile() {
+        return file;
+    }
+
+    public void setFile(byte[] file) {
+        this.file = file;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
 }

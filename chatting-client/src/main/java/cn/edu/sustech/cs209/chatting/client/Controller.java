@@ -10,15 +10,24 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.MouseButton;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.util.Callback;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
+import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.file.Files;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
@@ -117,6 +126,9 @@ public class Controller implements Initializable {
 
         String selectedUser = user.get();
         boolean chatExists = false;
+        if (user == null) {
+            return;
+        }
         for (ChatGroup ChatGroup : chatList.getItems()) {
             //如果ChatGroup.getChatMembers()(String类型)里包含自己和选中的用户，就打开这个聊天
             if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().contains(selectedUser) && ChatGroup.getGroupType() == GroupType.PRIVATE) {
@@ -130,7 +142,7 @@ public class Controller implements Initializable {
             List<String> chatMembers = new ArrayList<>();
             chatMembers.add(client.username);
             chatMembers.add(selectedUser);
-            System.out.println(chatMembers.toString());
+
             ChatGroup chatGroup = new ChatGroup(client.username, chatMembers.toString(), chatMembers, GroupType.PRIVATE);
             chatList.getItems().add(chatGroup);
             sendGroup(chatGroup);
@@ -174,6 +186,9 @@ public class Controller implements Initializable {
         // TODO: the title needs to be generated according to the naming rule
 
         List<String> selectedUsers = users.get();
+        if (selectedUsers == null) {
+            return;
+        }
         boolean chatExists = false;
         for (ChatGroup ChatGroup : chatList.getItems()) {
             if (ChatGroup.getChatMembers().contains(client.username) && ChatGroup.getChatMembers().containsAll(selectedUsers) && ChatGroup.getGroupType() == GroupType.GROUP) {
@@ -187,7 +202,7 @@ public class Controller implements Initializable {
             List<String> chatMembers = new ArrayList<>();
             chatMembers.add(client.username);
             chatMembers.addAll(selectedUsers);
-            System.out.println(chatMembers.toString());
+
             ChatGroup chatGroup = new ChatGroup(client.username,chatMembers.toString(), chatMembers, GroupType.GROUP);
             chatList.getItems().add(chatGroup);
             sendGroup(chatGroup);
@@ -215,6 +230,38 @@ public class Controller implements Initializable {
         chatContentList.getItems().setAll(activeChat.getMessages());
         client.sendMessage(message);
         inputArea.clear();
+    }
+
+    @FXML
+    public void doSendFile() {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Select a file to send");
+        File file = fileChooser.showOpenDialog(chatContentList.getScene().getWindow());
+
+        if (file != null) {
+            try {
+                ChatGroup activeChat = chatList.getSelectionModel().getSelectedItem();
+                Message message = new Message(System.currentTimeMillis(), client.username, activeChat.getChatName(), file.getName());
+
+                String fileName = file.getName();
+                byte[] fileContent = Files.readAllBytes(file.toPath());
+                message.setFileName(fileName);
+                message.setFile(fileContent);
+
+                activeChat.getMessages().add(message);
+                chatContentList.getItems().setAll(activeChat.getMessages());
+                client.sendMessage(message);
+            } catch (IOException e) {
+                e.printStackTrace();
+                // Handle the exception, show an error message or take other appropriate actions.
+            }
+        }
+
+    }
+
+    @FXML
+    public void doSendEmoji() {
+
     }
 
     /**
@@ -250,21 +297,109 @@ public class Controller implements Initializable {
                     nameLabel.setWrapText(true); //设置标签的文本是否自动换行
                     nameLabel.setStyle("-fx-border-color: black; -fx-border-width: 1px;");
 
-                    if (client.username.equals(msg.getSentBy())) { //如果当前用户的名字等于消息的发送者
-                        wrapper.setAlignment(Pos.TOP_RIGHT); //设置盒子的对齐方式
-                        wrapper.getChildren().addAll(msgLabel, nameLabel); //将标签添加到盒子中
-                        msgLabel.setPadding(new Insets(0, 20, 0, 0)); //设置标签的内边距
+                    if (msg.getFile() != null) {
+                        //如果是png或者jpg格式的图片，就显示图片
+                        if (msg.getFileName().endsWith(".png") || msg.getFileName().endsWith(".jpg")) {
+
+                            Image image = convertByteArrayToImage(msg.getFile());
+                            ImageView imageView = new ImageView(image);
+                            imageView.setFitWidth(200);
+                            imageView.setPreserveRatio(true);
+
+                            if (client.username.equals(msg.getSentBy())) {
+                                wrapper.setAlignment(Pos.TOP_RIGHT);
+                                wrapper.getChildren().addAll(imageView, nameLabel);
+                            } else {
+                                wrapper.setAlignment(Pos.TOP_LEFT);
+                                wrapper.getChildren().addAll(nameLabel, imageView);
+                            }
+
+                            imageView.setOnMouseClicked(event -> {
+                                if (event.getButton() == MouseButton.PRIMARY && msg.getFile() != null) {
+                                    FileChooser fileChooser = new FileChooser();
+                                    fileChooser.setTitle("Save File");
+                                    fileChooser.setInitialFileName(msg.getFileName());
+                                    File file = fileChooser.showSaveDialog(null);
+
+                                    if (file != null) {
+                                        try {
+                                            Files.write(file.toPath(), msg.getFile());
+                                            showAlert(Alert.AlertType.INFORMATION, "Success", "File saved successfully!");
+                                        } catch (IOException e) {
+                                            showAlert(Alert.AlertType.ERROR, "Error", "Error occurred while saving the file.");
+                                        }
+                                    }
+                                }
+                            });
+                        } else {
+                            //如果是其他格式的文件，就显示文件名
+                            if (client.username.equals(msg.getSentBy())) {
+                                wrapper.setAlignment(Pos.TOP_RIGHT);
+                                wrapper.getChildren().addAll(msgLabel, nameLabel);
+                                msgLabel.setPadding(new Insets(0, 20, 0, 0));
+                            } else {
+                                wrapper.setAlignment(Pos.TOP_LEFT);
+                                wrapper.getChildren().addAll(nameLabel, msgLabel);
+                                msgLabel.setPadding(new Insets(0, 0, 0, 20));
+                            }
+                        }
                     } else {
-                        wrapper.setAlignment(Pos.TOP_LEFT);
-                        wrapper.getChildren().addAll(nameLabel, msgLabel);
-                        msgLabel.setPadding(new Insets(0, 0, 0, 20));
+                        if (client.username.equals(msg.getSentBy())) {
+                            wrapper.setAlignment(Pos.TOP_RIGHT);
+                            wrapper.getChildren().addAll(msgLabel, nameLabel);
+                            msgLabel.setPadding(new Insets(0, 20, 0, 0));
+                        } else {
+                            wrapper.setAlignment(Pos.TOP_LEFT);
+                            wrapper.getChildren().addAll(nameLabel, msgLabel);
+                            msgLabel.setPadding(new Insets(0, 0, 0, 20));
+                        }
                     }
 
-                    setContentDisplay(ContentDisplay.GRAPHIC_ONLY); //设置内容的显示方式
-                    setGraphic(wrapper); //设置列表项的图形
+                    setContentDisplay(ContentDisplay.GRAPHIC_ONLY);
+                    setGraphic(wrapper);
+
+                    // 添加点击事件监听器
+                    msgLabel.setOnMouseClicked(event -> {
+                        System.out.println("Clicked on message: " + msg.getData());
+                        if (event.getButton() == MouseButton.PRIMARY && msg.getFile() != null) {
+                            // 提示用户选择文件保存位置
+                            FileChooser fileChooser = new FileChooser();
+                            fileChooser.setTitle("Save File");
+                            fileChooser.setInitialFileName(msg.getFileName()); // 设置默认文件名，从Message对象中获取
+                            File file = fileChooser.showSaveDialog(null);
+
+                            if (file != null) {
+                                try {
+                                    // 将文件数据写入到选择的文件中
+                                    Files.write(file.toPath(), msg.getFile());
+                                    // 显示成功提示
+                                    Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                                    alert.setTitle("File Saved");
+                                    alert.setHeaderText("File saved successfully");
+                                    alert.setContentText("The file has been saved to: " + file.getAbsolutePath());
+                                    alert.showAndWait();
+                                } catch (IOException e) {
+                                    // 显示错误提示
+                                    Alert alert = new Alert(Alert.AlertType.ERROR);
+                                    alert.setTitle("Error");
+                                    alert.setHeaderText("File save error");
+                                    alert.setContentText("An error occurred while saving the file: " + e.getMessage());
+                                    alert.showAndWait();
+                                }
+                            }
+                        }
+                    });
                 }
             };
         }
+    }
+
+    public void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     /**
@@ -446,10 +581,18 @@ public class Controller implements Initializable {
     public void onReceiveMessage(Message message) {
         Platform.runLater(() -> {
             ChatGroup activeChat = chatList.getSelectionModel().getSelectedItem();
+            if (activeChat == null) {
+                return;
+            }
             if (activeChat.getChatName().equals(message.getSendTo())) {
                 chatContentList.getItems().setAll(activeChat.getMessages());
             }
         });
+    }
+
+    private Image convertByteArrayToImage(byte[] imageData) {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(imageData);
+        return new Image(inputStream);
     }
 
     public void stop() {

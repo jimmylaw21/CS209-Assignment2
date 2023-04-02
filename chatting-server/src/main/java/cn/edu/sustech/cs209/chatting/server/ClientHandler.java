@@ -3,6 +3,8 @@ package cn.edu.sustech.cs209.chatting.server;
 import cn.edu.sustech.cs209.chatting.common.Group;
 import cn.edu.sustech.cs209.chatting.common.Message;
 
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
@@ -13,7 +15,6 @@ public class ClientHandler implements Runnable {
     private Socket socket;
     private ObjectInputStream in;
     private ObjectOutputStream out;
-
     private String clientName;
 
     public ClientHandler(ChatServer server, Socket socket) {
@@ -32,7 +33,12 @@ public class ClientHandler implements Runnable {
                 Object receivedObject = in.readObject();
                 if (receivedObject instanceof Message) {
                     Message message = (Message) receivedObject;
-                    HandleClientMessage(message);
+                    if (message.getFile() != null) {
+                        // This is a file message, handle it accordingly.
+                        HandleMessageWithFile(message);
+                    }else{
+                        HandleClientMessage(message);
+                    }
                 }else if (receivedObject instanceof Group) {
                     Group group = (Group) receivedObject;
                     HandleClientGroup(group);
@@ -124,6 +130,12 @@ public class ClientHandler implements Runnable {
                 clientHandler.sendGroupToClient(group);
             }
         }
+    }
+
+    public void HandleMessageWithFile(Message message) throws IOException {
+        // TODO 检查文件类型、大小
+
+        HandleClientMessage(message);
     }
 
     public String getClientName() {

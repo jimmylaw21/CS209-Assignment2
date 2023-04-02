@@ -28,9 +28,11 @@
         <SplitPane dividerPositions="0.85" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0"> <!-- 分割窗格 -->
             <ListView fx:id="chatContentList" prefHeight="200.0" prefWidth="200.0"/> <!-- 聊天内容列表 -->
             <HBox prefHeight="100.0" prefWidth="200.0">
-                <TextArea fx:id="inputArea" prefHeight="138.0" prefWidth="624.0" HBox.hgrow="ALWAYS"/> <!-- 输入框 -->
+                <TextArea fx:id="inputArea" prefHeight="138.0" prefWidth="586.0" HBox.hgrow="ALWAYS"/> <!-- 输入框 -->
                 <Button maxHeight="1.7976931348623157E308" mnemonicParsing="false" onAction="#doSendMessage"
                         text="Send" HBox.hgrow="ALWAYS"/> <!-- 发送按钮 -->
+                <Button maxHeight="1.7976931348623157E308" mnemonicParsing="false" onAction="#doSendFile"
+                        text="File" HBox.hgrow="ALWAYS"/>
             </HBox>
         </SplitPane>
     </SplitPane>
