@@ -8,7 +8,7 @@ import javafx.collections.ObservableList;
 
 import java.util.List;
 
-public class ChatGroup {
+public class ChatGroup implements Comparable<ChatGroup> {
 
     private String chatName;
     private String creator;
@@ -31,6 +31,20 @@ public class ChatGroup {
         this.chatMembers = group.getGroupMembers();
         this.messages = FXCollections.observableArrayList(group.getGroupMessages());
         this.groupType = group.getGroupType();
+    }
+
+    @Override
+    public int compareTo(ChatGroup other) {
+        // Assuming you have a method called getLastMessageTimestamp() that returns the timestamp of the last message in the group.
+        return Long.compare(other.getLastMessageTimestamp(), this.getLastMessageTimestamp());
+    }
+
+    public long getLastMessageTimestamp() {
+        // Assuming you have a list of messages called messages.
+        if (messages.isEmpty()) {
+            return 0;
+        }
+        return messages.get(messages.size() - 1).getTimestamp();
     }
 
     public List<String> getChatMembers() {
@@ -75,6 +89,11 @@ public class ChatGroup {
 
     public void setGroupType(GroupType groupType) {
         this.groupType = groupType;
+    }
+
+    @Override
+    public String toString() {
+        return "Group{" + "chatName='" + chatName + '\'' + ", creator='" + creator + '\'' + ", groupType=" + groupType + ", chatMembers=" + chatMembers + ", messages=" + messages + '}';
     }
 }
 

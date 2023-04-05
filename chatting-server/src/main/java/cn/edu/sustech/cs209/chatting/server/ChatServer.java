@@ -5,9 +5,7 @@ import cn.edu.sustech.cs209.chatting.common.Message;
 
 import java.io.*;
 import java.net.*;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -16,13 +14,14 @@ public class ChatServer {
     private ServerSocket serverSocket;
     private ExecutorService executorService;
     private Set<ClientHandler> clients;
-
     private Set<Group> groups;
+    private Map<String, String> usersCredentials;
 
     public ChatServer(int port) {
         this.port = port;
         this.clients = Collections.synchronizedSet(new HashSet<>());
         this.groups = Collections.synchronizedSet(new HashSet<>());
+        this.usersCredentials = Collections.synchronizedMap(new HashMap<>());
     }
 
     public void startServer() {
@@ -34,13 +33,16 @@ public class ChatServer {
 
             executorService = Executors.newCachedThreadPool();
 
+            readGroupInfo();
+
+            readUsersCredentials();
+
             while (true) {
                 Socket socket = serverSocket.accept();
 
                 System.out.println("New client connected: " + socket.getInetAddress().getHostAddress());
 
-                ClientHandler clientHandler;
-                       clientHandler = new ClientHandler(this, socket);
+                ClientHandler clientHandler = new ClientHandler(this, socket);
                 clients.add(clientHandler);
                 executorService.execute(clientHandler);
             }
@@ -48,12 +50,6 @@ public class ChatServer {
             e.printStackTrace();
         } finally {
             try {
-                // 向所有客户端发送服务器关闭的消息
-                for (ClientHandler client : clients) {
-                    client.sendMessageToClient(new Message(System.currentTimeMillis(), "Server", client.getClientName(), "Server is shutting down"));
-                }
-                // 等待10秒，让客户端接收到消息，然后移除客户端
-                Thread.sleep(10000);
                 for (ClientHandler client : clients) {
                     removeClient(client);
                 }
@@ -61,16 +57,6 @@ public class ChatServer {
                 serverSocket.close();
             } catch (IOException e) {
                 e.printStackTrace();
-            } catch (InterruptedException e) {
-                throw new RuntimeException(e);
-            }
-        }
-    }
-
-    public void broadcastMessage(String message, ClientHandler sender) {
-        for (ClientHandler client : clients) {
-            if (client != sender) {
-//                client.sendMessage(message);
             }
         }
     }
@@ -83,27 +69,76 @@ public class ChatServer {
         serverSocket.bind(new InetSocketAddress(Inet4Address.getLocalHost(), port), 10); //服务器端绑定本地的 IP 地址和端口号
         serverSocket.setReuseAddress(true); // 设置端口复用
         serverSocket.setReceiveBufferSize(64 * 1024 * 1024); // 设置接收缓冲区为 64M
-            serverSocket.setSoTimeout(300000); // 服务器端设置超时时间为 300 秒
+        serverSocket.setSoTimeout(300000); // 服务器端设置超时时间为 300 秒
         serverSocket.setPerformancePreferences(10, 10, 1);
     }
 
-    // 保存群聊信息到本地group.json文件中
-    public void saveGroupInfo() throws FileNotFoundException {
-        String groupInfo = "";
-        for (Group group : groups) {
-            groupInfo += group.toString();
-        }
-        BufferedOutputStream bufferedOutputStream = new BufferedOutputStream(new FileOutputStream(getClass().getResource("/group.json").getPath()));
+    public void saveGroupInfo() {
         try {
-            bufferedOutputStream.write(groupInfo.getBytes());
+            // 保存群聊信息到本地resource文件夹中的group.txt文件中
+            String filePath = "chatting-server/src/main/resources/groups.txt";
+            File file = new File(filePath);
+            if (!file.exists()) {
+                file.createNewFile();
+            }
+
+            try (FileOutputStream fos = new FileOutputStream(file);
+                 ObjectOutputStream oos = new ObjectOutputStream(fos)) {
+                oos.writeObject(groups);
+            }
         } catch (IOException e) {
             e.printStackTrace();
         }
     }
 
-    // 读取本地group.json文件中的群聊信息
     public void readGroupInfo() {
+        String filePath = "chatting-server/src/main/resources/groups.txt";
+        File file = new File(filePath);
+        if (file.exists() && file.length() > 0) {
+            try (FileInputStream fis = new FileInputStream(file);
+                 ObjectInputStream ois = new ObjectInputStream(fis)) {
+                // 读取群组信息
+                groups = (Set<Group>) ois.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
+    public void saveUsersCredentials() throws IOException {
+        String filePath = "chatting-server/src/main/resources/usersCredentials.txt";
+        File file = new File(filePath);
+        if (!file.exists()) {
+            file.createNewFile();
+        }
+        try (FileOutputStream fos = new FileOutputStream(file);
+             ObjectOutputStream oos = new ObjectOutputStream(fos)) {
+            oos.writeObject(usersCredentials);
+        }
+    }
+
+    public void readUsersCredentials() throws IOException {
+        String filePath = "chatting-server/src/main/resources/usersCredentials.txt";
+        File file = new File(filePath);
+        if (file.exists() && file.length() > 0) {
+            try (FileInputStream fis = new FileInputStream(file);
+                 ObjectInputStream ois = new ObjectInputStream(fis)) {
+                usersCredentials = (Map<String, String>) ois.readObject();
+            } catch (IOException | ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void registerUser(String username, String password) throws IOException {
+        usersCredentials.put(username, password);
+        saveUsersCredentials();
+        System.out.println("User " + username + " registered");
+    }
+
+    public boolean validateUser(String username, String password) {
+        String storedPassword = usersCredentials.get(username);
+        return storedPassword != null && storedPassword.equals(password);
     }
 
     public Set<ClientHandler> getClients() {

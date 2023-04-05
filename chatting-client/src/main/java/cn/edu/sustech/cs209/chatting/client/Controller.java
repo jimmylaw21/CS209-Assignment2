@@ -4,6 +4,8 @@ import cn.edu.sustech.cs209.chatting.common.Group;
 import cn.edu.sustech.cs209.chatting.common.GroupType;
 import cn.edu.sustech.cs209.chatting.common.Message;
 import javafx.application.Platform;
+import javafx.beans.binding.Bindings;
+import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.Initializable;
 import javafx.geometry.Insets;
@@ -13,16 +15,17 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.input.MouseButton;
+import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
+import javafx.stage.Popup;
 import javafx.stage.Stage;
 import javafx.util.Callback;
+import javafx.util.Pair;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
@@ -56,9 +59,12 @@ public class Controller implements Initializable {
 
     String[] allClientNames; // 存储所有在线客户端的名称
 
-    private final Lock lock = new ReentrantLock(); // 用于同步allClientNames数组的锁
-    private final Condition namesUpdated = lock.newCondition(); // 与锁相关的条件变量，用于等待allClientNames更新
+    private Popup emojiPopup;
 
+    private final Lock lock = new ReentrantLock(); // 用于同步allClientNames数组的锁
+    private final Condition namesUpdated = lock.newCondition();
+    private final Condition loginResult = lock.newCondition();
+    private boolean loginSuccess = false;
     /**
      * 初始化聊天客户端界面，连接到聊天服务器并设置用户名。
      * 在FXML文件加载后初始化UI组件和事件监听器。
@@ -69,12 +75,20 @@ public class Controller implements Initializable {
     @Override
     public void initialize(URL url, ResourceBundle resourceBundle) {
 
+//        try {
+//            client = new ChatClient(this);
+//            new Thread(client).start();
+//        } catch (IOException e) {
+//            throw new RuntimeException(e);
+//        }
+
         try {
             client = new ChatClient("10.25.0.92", 8888, this);
             new Thread(client).start();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
 
         showUsernameInputDialog();
 
@@ -84,11 +98,26 @@ public class Controller implements Initializable {
 
         chatList.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
-                chatContentList.getItems().clear(); // 清空chatContentList
-                chatContentList.getItems().setAll(newValue.getMessages()); // 加载新选择的群组信息
+                //foreach打印chatContentList聊天内容
+                for (Message message : chatContentList.getItems()) {
+                    System.out.println(message);
+                }
+                chatContentList.getItems().clear();
+                chatContentList.getItems().setAll(newValue.getMessages());
             } else {
                 chatContentList.getItems().clear(); // 如果没有选中任何群组，仍然清空chatContentList
             }
+        });
+
+        initEmojiPopup();
+
+        inputArea.setOnContextMenuRequested(event -> {
+            if (emojiPopup.isShowing()) {
+                emojiPopup.hide();
+            } else {
+                emojiPopup.show(inputArea, event.getScreenX(), event.getScreenY() - emojiPopup.getHeight());
+            }
+            event.consume();
         });
 
     }
@@ -126,7 +155,7 @@ public class Controller implements Initializable {
 
         String selectedUser = user.get();
         boolean chatExists = false;
-        if (user == null) {
+        if (selectedUser == null && selectedUser.equals(client.username) && user == null) {
             return;
         }
         for (ChatGroup ChatGroup : chatList.getItems()) {
@@ -218,17 +247,22 @@ public class Controller implements Initializable {
      */
     @FXML
     public void doSendMessage() throws IOException {
-        // TODO
+
         String messageText = inputArea.getText().trim();
         if (messageText.isEmpty()) {
             return;
         }
+        // 示例：在消息文本中添加emoji（这里以 😊 为例）
+        String emoji = "😊";
+        messageText = messageText + " " + emoji; // 将emoji添加到消息末尾
         ChatGroup activeChat = chatList.getSelectionModel().getSelectedItem();
         //sendTo为
         Message message = new Message(System.currentTimeMillis(), client.username, activeChat.getChatName(), messageText);
         activeChat.getMessages().add(message);
-        chatContentList.getItems().setAll(activeChat.getMessages());
+        chatContentList.getItems().clear();
+        chatContentList.getItems().setAll(activeChat.getMessages()); // 加载新选择的群组信息
         client.sendMessage(message);
+        updateGroupOrder();
         inputArea.clear();
     }
 
@@ -286,6 +320,8 @@ public class Controller implements Initializable {
                 public void updateItem(Message msg, boolean empty) { //更新列表项
                     super.updateItem(msg, empty); //调用父类的方法
                     if (empty || Objects.isNull(msg)) { //如果列表项为空或者消息为空
+                        setText(null); //设置文本为空
+                        setGraphic(null); //设置图形为空
                         return;
                     }
 
@@ -394,14 +430,6 @@ public class Controller implements Initializable {
         }
     }
 
-    public void showAlert(Alert.AlertType type, String title, String message) {
-        Alert alert = new Alert(type);
-        alert.setTitle(title);
-        alert.setHeaderText(null);
-        alert.setContentText(message);
-        alert.showAndWait();
-    }
-
     /**
      * ChatGroupCellFactory是一个公共类，用于定制聊天组列表中的聊天组单元格。
      * 它实现了Callback接口，以自定义ListView中聊天组的显示方式。
@@ -496,9 +524,13 @@ public class Controller implements Initializable {
      * 如果用户选择退出，将关闭应用程序。
      */
     private void showUsernameInputDialog() {
-        Dialog<String> dialog = new TextInputDialog();
-        dialog.setTitle("Login");
+        Dialog<Pair<String, String>> dialog = new Dialog<>();
+        dialog.setTitle("Login / Register");
         dialog.setHeaderText(null);
+
+        ButtonType loginButtonType = new ButtonType("Login", ButtonBar.ButtonData.OK_DONE);
+        ButtonType registerButtonType = new ButtonType("Register", ButtonBar.ButtonData.OK_DONE);
+        dialog.getDialogPane().getButtonTypes().addAll(loginButtonType, registerButtonType, ButtonType.CANCEL);
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
@@ -507,35 +539,44 @@ public class Controller implements Initializable {
 
         TextField username = new TextField();
         username.setPromptText("Username");
+        PasswordField password = new PasswordField();
+        password.setPromptText("Password");
         Label errorMessage = new Label();
         errorMessage.setTextFill(Color.RED);
 
         grid.add(new Label("Username:"), 0, 0);
         grid.add(username, 1, 0);
-        grid.add(errorMessage, 1, 1);
+        grid.add(new Label("Password:"), 0, 1);
+        grid.add(password, 1, 1);
+        grid.add(errorMessage, 1, 2);
 
         dialog.getDialogPane().setContent(grid);
 
         Platform.runLater(() -> username.requestFocus());
 
+        AtomicReference<ButtonType> clickedButtonType = new AtomicReference<>();
+
         dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == ButtonType.OK) {
-                return username.getText();
+            clickedButtonType.set(dialogButton);
+            if (dialogButton == loginButtonType) {
+                return new Pair<>(username.getText(), password.getText());
+            } else if (dialogButton == registerButtonType) {
+                return new Pair<>(username.getText(), password.getText());
             }
             return null;
         });
 
-        Optional<String> input = dialog.showAndWait();
+        Optional<Pair<String, String>> input = dialog.showAndWait();
         sendMessage("AllClientNames","Server");
 
         lock.lock();
 
         try {
             namesUpdated.await();
-            while (Arrays.asList(allClientNames).contains(input.get())) {
+            while (Arrays.asList(allClientNames).contains(input.get().getKey())) {
                 errorMessage.setText("Username already exists, please choose another one.");
                 input = dialog.showAndWait();
-                if (!input.isPresent() || input.get().isEmpty()) {
+                if (!input.isPresent() || input.get().getKey().isEmpty()) {
                     System.out.println("Invalid username " + input + ", exiting");
                     Platform.exit();
                 }
@@ -546,9 +587,28 @@ public class Controller implements Initializable {
             lock.unlock();
         }
 
-        client.username = input.get();
+        // Send username and password to the server for login or registration
+        String operation = clickedButtonType.get() == loginButtonType ? "login" : "register";
 
-        sendMessage("clientName:"+input.get(),"Server");
+        String userAndPassword = operation + ":" + input.get().getKey() + ":" + input.get().getValue();
+        sendMessage(userAndPassword, "Server");
+
+        lock.lock();
+        try {
+            loginResult.await();
+            if (!loginSuccess) {
+                errorMessage.setText("Invalid username or password. Please try again.");
+                showUsernameInputDialog();
+            }
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        } finally {
+            lock.unlock();
+        }
+
+        client.username = input.get().getKey();
+
+        sendMessage("clientName:"+input.get().getKey(),"Server");
     }
     /**
      * 从服务器获取所有用户的列表，然后过滤掉当前用户自己。
@@ -587,12 +647,21 @@ public class Controller implements Initializable {
             if (activeChat.getChatName().equals(message.getSendTo())) {
                 chatContentList.getItems().setAll(activeChat.getMessages());
             }
+            updateGroupOrder();
         });
     }
 
     private Image convertByteArrayToImage(byte[] imageData) {
         ByteArrayInputStream inputStream = new ByteArrayInputStream(imageData);
         return new Image(inputStream);
+    }
+
+    public void showAlert(Alert.AlertType type, String title, String message) {
+        Alert alert = new Alert(type);
+        alert.setTitle(title);
+        alert.setHeaderText(null);
+        alert.setContentText(message);
+        alert.showAndWait();
     }
 
     public void stop() {
@@ -612,4 +681,70 @@ public class Controller implements Initializable {
             Platform.exit();
         });
     }
+
+    public void updateGroupOrder() {
+
+        // Sort the list based on the timestamps of the last messages.
+        FXCollections.sort(chatList.getItems());
+
+        // Refresh the ListView to display the updated order.
+        chatList.refresh();
+    }
+
+    private void initEmojiPopup() {
+        emojiPopup = new Popup();
+
+        FlowPane emojiPane = new FlowPane();
+        emojiPane.setHgap(5);
+        emojiPane.setVgap(5);
+        emojiPane.setPadding(new Insets(5, 5, 5, 5));
+
+        // 示例：添加一些emoji
+        String[] emojis = {"😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇"};
+        for (String emoji : emojis) {
+            Button emojiButton = new Button(emoji);
+            emojiButton.setStyle("-fx-background-color: transparent;");
+            emojiButton.setOnAction(event -> {
+                inputArea.appendText(emoji);
+                emojiPopup.hide();
+            });
+            emojiPane.getChildren().add(emojiButton);
+        }
+
+        emojiPopup.getContent().add(emojiPane);
+    }
+
+    public void addNewChat(ChatGroup chatGroup) {
+        Platform.runLater(() -> {
+            chatList.getItems().add(chatGroup);
+            if (chatList.getSelectionModel().getSelectedItem() == null) {
+                chatList.getSelectionModel().select(chatGroup);
+                chatContentList.getItems().setAll(chatGroup.getMessages());
+            }
+        });
+    }
+
+    public void addNewMessage(Message message) {
+        Platform.runLater(() -> {
+            chatList.getItems().forEach(chatGroup -> {
+                if (chatGroup.getChatName().equals(message.getSendTo())) {
+                    chatGroup.addMessage(message);
+                    onReceiveMessage(message);
+                }
+                });
+        });
+    }
+
+    public Lock getLock() {
+        return lock;
+    }
+
+    public Condition getLoginResult() {
+        return loginResult;
+    }
+
+    public void setLoginSuccess(boolean loginSuccess) {
+        this.loginSuccess = loginSuccess;
+    }
+
 }

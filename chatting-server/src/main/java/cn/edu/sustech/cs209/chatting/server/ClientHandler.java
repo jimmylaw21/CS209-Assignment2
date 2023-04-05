@@ -3,8 +3,6 @@ package cn.edu.sustech.cs209.chatting.server;
 import cn.edu.sustech.cs209.chatting.common.Group;
 import cn.edu.sustech.cs209.chatting.common.Message;
 
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
@@ -28,13 +26,14 @@ public class ClientHandler implements Runnable {
             in = new ObjectInputStream(socket.getInputStream());
             out = new ObjectOutputStream(socket.getOutputStream());
 
+            Boolean hasReceivedClientName = false;
+
             while (true) {
                 // 分辨客户端发送的object是什么类型
                 Object receivedObject = in.readObject();
                 if (receivedObject instanceof Message) {
                     Message message = (Message) receivedObject;
                     if (message.getFile() != null) {
-                        // This is a file message, handle it accordingly.
                         HandleMessageWithFile(message);
                     }else{
                         HandleClientMessage(message);
@@ -42,6 +41,12 @@ public class ClientHandler implements Runnable {
                 }else if (receivedObject instanceof Group) {
                     Group group = (Group) receivedObject;
                     HandleClientGroup(group);
+                }
+                if (clientName != null && !hasReceivedClientName) {
+                    // 连接成功后，发送最近的聊天记录给客户端
+                    initializeClient();
+                    System.out.println("jdlkasjlkdjasldkas;ldjlkashdjkashdkjashdjhaslkdjsalkdhjla");
+                    hasReceivedClientName = true;
                 }
             }
         } catch (SocketException e) {
@@ -74,11 +79,20 @@ public class ClientHandler implements Runnable {
 
     public void HandleClientMessage(Message message) throws IOException {
         if (message.getSendTo().equals("Server")) {
+            if (message.getData().startsWith("register:")) {
+                handleUserRegistration(message);
+                return;
+            }
+            if (message.getData().startsWith("login:")) {
+                handleUserLogin(message);
+                return;
+            }
             // 如果客户端发送了“clientName:”， 则服务器端将客户端的名字设置为发送的名字
             if (message.getData().startsWith("clientName:")) {
                 clientName = message.getData().substring("clientName:".length());
                 return;
             }
+
             // 如果客户端发送了“AllClientNames”， 则服务器端返回所有客户端的名字
             if (message.getData().equals("AllClientNames")) {
                 StringBuilder allClientNames = new StringBuilder();
@@ -89,7 +103,7 @@ public class ClientHandler implements Runnable {
                 sendMessageToClient(message1);
                 return;
             }
-            System.out.println("At "+message.getTimestamp()+", Received message from " + message.getSentBy() + " to " + message.getSendTo() + ": " + message.getData());
+
             return;
         }
         // 使用stream获取server中的群组，其名字与message中的sendTo相同
@@ -103,9 +117,11 @@ public class ClientHandler implements Runnable {
                 if (group.get().getGroupMembers().contains(clientHandler.clientName)) {
                     clientHandler.sendMessageToClient(message);
                 }
-                // Message也要保留在server这边的group中
-                group.get().addMessage(message);
             }
+            // Message也要保留在server这边的group中
+            group.get().addMessage(message);
+            server.saveGroupInfo(); // 保存群组信息到文件
+            System.out.println(group);
             return;
         }
         // 如果群组名字不存在，则将消息发送给指定的客户端
@@ -119,8 +135,34 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    public void handleUserRegistration(Message message) throws IOException {
+        String[] data = message.getData().split(":");
+        String username = data[1];
+        String password = data[2];
+
+        server.registerUser(username, password);
+        // You may also send a confirmation message to the client if needed
+        Message loginResult = new Message(System.currentTimeMillis(), "Server", message.getSentBy(), "LoginResult:Success");
+        sendMessageToClient(loginResult);
+    }
+
+    public void handleUserLogin(Message message) throws IOException {
+        String[] data = message.getData().split(":");
+        String username = data[1];
+        String password = data[2];
+
+        boolean success = server.validateUser(username, password);
+        if (success) {
+            clientName = username;
+        }
+        // Send a login result message to the client
+        Message loginResult = new Message(System.currentTimeMillis(), "Server", message.getSentBy(), "LoginResult:" + (success ? "Success" : "Failed"));
+        sendMessageToClient(loginResult);
+    }
+
     public void HandleClientGroup(Group group) throws IOException {
         server.getGroups().add(group);
+        server.saveGroupInfo(); // 保存群组信息到文件
         // 将收到的群组发送给群组包含的所有客户端
         for (ClientHandler clientHandler : server.getClients()) {
             if (clientHandler.clientName.equals(group.getCreator())) {
@@ -136,6 +178,19 @@ public class ClientHandler implements Runnable {
         // TODO 检查文件类型、大小
 
         HandleClientMessage(message);
+    }
+
+    public void initializeClient() {
+        for (Group group : server.getGroups()) {
+            if (group.getGroupMembers().contains(clientName)) {
+                // 发送群组给客户端
+                try {
+                    sendGroupToClient(group);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
     }
 
     public String getClientName() {
