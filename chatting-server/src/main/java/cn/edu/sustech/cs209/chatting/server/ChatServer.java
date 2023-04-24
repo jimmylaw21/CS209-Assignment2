@@ -148,4 +148,33 @@ public class ChatServer {
     public Set<Group> getGroups() {
         return groups;
     }
+
+    public void updateClientsCnt() {
+        synchronized (clients) {
+            for (ClientHandler client : clients) {
+                try {
+                    if (isClientConnected(client)) {
+                        client.sendClientCount(clients.size());
+                    } else {
+                        clients.remove(client);
+                    }
+                } catch (IOException e) {
+                    System.err.println("Error sending client count: " + e.getMessage());
+                    clients.remove(client);
+                }
+            }
+        }
+    }
+
+    private boolean isClientConnected(ClientHandler client) {
+        try {
+            return client.getSocket().getInputStream().available() >= 0;
+        } catch (SocketException e) {
+            return false;
+        } catch (IOException e) {
+            System.err.println("Error checking client connection: " + e.getMessage());
+            return false;
+        }
+    }
+
 }

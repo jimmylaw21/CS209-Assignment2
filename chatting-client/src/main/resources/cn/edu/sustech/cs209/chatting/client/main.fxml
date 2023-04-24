@@ -9,47 +9,56 @@
 <?import javafx.scene.control.MenuItem?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TextArea?>
+<?import javafx.scene.control.ToolBar?>
 <?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.Pane?>
 <?import javafx.scene.layout.VBox?>
-<?import javafx.scene.paint.Color?>
 <?import javafx.scene.text.Font?>
+
 <!--中文注释-->
-<VBox prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1"
-      fx:controller="cn.edu.sustech.cs209.chatting.client.Controller">
-    <MenuBar VBox.vgrow="NEVER">
-        <Menu mnemonicParsing="false" text="Chat"> <!-- Chat菜单 -->
-            <MenuItem mnemonicParsing="false" onAction="#createPrivateChat" text="New Private Chat"/> <!-- PrivateChat菜单 -->
-            <MenuItem mnemonicParsing="false" onAction="#createGroupChat" text="New Group Chat"/> <!-- GroupChat菜单 -->
+
+<VBox prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="cn.edu.sustech.cs209.chatting.client.Controller">
+    <MenuBar style="-fx-background-color: #867070;" VBox.vgrow="NEVER">
+        <Menu mnemonicParsing="false" text="New Chat"> <!-- Chat菜单 -->
+            <MenuItem mnemonicParsing="false" onAction="#createPrivateChat" text="New Private Chat" /> <!-- PrivateChat菜单 -->
+            <MenuItem mnemonicParsing="false" onAction="#createGroupChat" text="New Group Chat" /> <!-- GroupChat菜单 -->
         </Menu>
+      <Menu mnemonicParsing="false" text="This Chat">
+        <items>
+          <MenuItem mnemonicParsing="false" onAction="#showGroupMember" text="Group Member" />
+        </items>
+      </Menu>
     </MenuBar>
     <SplitPane dividerPositions="0.25" focusTraversable="true" VBox.vgrow="ALWAYS"> <!-- 分割窗格 -->
-        <ListView fx:id="chatList" prefHeight="200.0" prefWidth="200.0"/> <!-- 聊天列表 -->
-        <SplitPane dividerPositions="0.85" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0"> <!-- 分割窗格 -->
-            <ListView fx:id="chatContentList" prefHeight="200.0" prefWidth="200.0"/> <!-- 聊天内容列表 -->
-            <HBox prefHeight="100.0" prefWidth="200.0">
-                <TextArea fx:id="inputArea" prefHeight="138.0" prefWidth="586.0" HBox.hgrow="ALWAYS"/> <!-- 输入框 -->
-                <Button maxHeight="1.7976931348623157E308" mnemonicParsing="false" onAction="#doSendMessage"
-                        text="Send" HBox.hgrow="ALWAYS"/> <!-- 发送按钮 -->
-                <Button maxHeight="1.7976931348623157E308" mnemonicParsing="false" onAction="#doSendFile"
-                        text="File" HBox.hgrow="ALWAYS"/>
+        <ListView fx:id="chatList" prefHeight="200.0" prefWidth="200.0" style="-fx-background-color: #E4D0D0;" /> <!-- 聊天列表 -->
+        <SplitPane dividerPositions="0.7210144927536232, 0.7952898550724637" orientation="VERTICAL" prefHeight="200.0" prefWidth="160.0"> <!-- 分割窗格 -->
+            <ListView fx:id="chatContentList" prefHeight="375.0" prefWidth="670.0" style="-fx-background-color: #F5EBEB;" />
+         <HBox prefHeight="128.0" prefWidth="670.0" style="-fx-background-color: #867070;">
+            <children>
+               <ToolBar prefHeight="40.0" prefWidth="200.0" style="-fx-background-color: #867070;">
+                 <items> <!-- 发送按钮 -->
+                         <Button mnemonicParsing="false" onAction="#doSendFile" style="-fx-background-color: #D5B4B4;" text="File" />
+                         <Button mnemonicParsing="false" onAction="#addEmojiToText" style="-fx-background-color: #D5B4B4;" text="Emoji" />
+                 </items>
+               </ToolBar>
+            </children>
+         </HBox> <!-- 聊天内容列表 -->
+            <HBox prefHeight="100.0" prefWidth="200.0" style="-fx-background-color: #E4D0D0;">
+                <TextArea fx:id="inputArea" prefHeight="138.0" prefWidth="586.0" style="-fx-background-color: #F5EBEB;" HBox.hgrow="ALWAYS" /> <!-- 输入框 -->
+                <Button maxHeight="1.7976931348623157E308" mnemonicParsing="false" onAction="#doSendMessage" prefHeight="101.0" prefWidth="75.0" style="-fx-background-color: #E4D0D0;" text="Send" />
             </HBox>
         </SplitPane>
     </SplitPane>
-    <HBox id="HBox" alignment="CENTER_LEFT" spacing="5.0" VBox.vgrow="NEVER"> <!-- 底部状态栏 -->
+    <HBox id="HBox" alignment="CENTER_LEFT" spacing="5.0" style="-fx-background-color: #D5B4B4;" VBox.vgrow="NEVER"> <!-- 底部状态栏 -->
         <padding>
-            <Insets bottom="3.0" left="3.0" right="3.0" top="3.0"/> <!-- 内边距 -->
+            <Insets bottom="3.0" left="3.0" right="3.0" top="3.0" /> <!-- 内边距 -->
         </padding>
-        <Label fx:id="currentUsername" maxHeight="1.7976931348623157E308"
-               text="Current User: USERNAME" HBox.hgrow="ALWAYS"> <!-- 当前用户名 -->
+        <Label fx:id="currentUsername" maxHeight="1.7976931348623157E308" style="-fx-background-color: #D5B4B4;" text="Current User: USERNAME" HBox.hgrow="ALWAYS"> <!-- 当前用户名 -->
             <font>
-                <Font size="11.0" fx:id="x3"/> <!-- 字体 -->
+                <Font size="11.0" fx:id="x3" /> <!-- 字体 -->
             </font>
-            <textFill>
-                <Color red="0.625" green="0.625" blue="0.625" fx:id="x4"/> <!-- 文字颜色 -->
-            </textFill>
         </Label>
-        <Pane HBox.hgrow="ALWAYS"/> <!-- 空白区域 -->
-        <Label fx:id="currentOnlineCnt" font="$x3" text="Online: 1" textFill="$x4" HBox.hgrow="NEVER"/> <!-- 当前在线人数 -->
+        <Pane style="-fx-background-color: #867070;" HBox.hgrow="ALWAYS" /> <!-- 空白区域 -->
+        <Label fx:id="currentOnlineCnt" font="$x3" style="-fx-background-color: #D5B4B4;" text="Online: 1" HBox.hgrow="NEVER" /> <!-- 当前在线人数 -->
     </HBox>
 </VBox>

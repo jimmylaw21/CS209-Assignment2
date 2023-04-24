@@ -66,6 +66,7 @@ public class ClientHandler implements Runnable {
                 e.printStackTrace();
             }
             server.removeClient(this);
+            server.updateClientsCnt();
         }
     }
 
@@ -90,6 +91,7 @@ public class ClientHandler implements Runnable {
             // 如果客户端发送了“clientName:”， 则服务器端将客户端的名字设置为发送的名字
             if (message.getData().startsWith("clientName:")) {
                 clientName = message.getData().substring("clientName:".length());
+                server.updateClientsCnt();
                 return;
             }
 
@@ -193,7 +195,16 @@ public class ClientHandler implements Runnable {
         }
     }
 
+    public void sendClientCount(int count) throws IOException {
+        Message message = new Message(System.currentTimeMillis(), "Server", "All", "ClientCount:" + count);
+        sendMessageToClient(message);
+    }
+
     public String getClientName() {
         return clientName;
+    }
+
+    public Socket getSocket(){
+        return socket;
     }
 }
