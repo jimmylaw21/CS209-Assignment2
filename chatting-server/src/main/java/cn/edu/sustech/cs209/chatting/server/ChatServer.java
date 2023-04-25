@@ -26,6 +26,7 @@ public class ChatServer {
 
   public void startServer() {
     try {
+      //Server started on host: 10.25.0.92, port: 8888
       serverSocket = new ServerSocket();
       serverSocketSetting();
 
@@ -70,7 +71,7 @@ public class ChatServer {
   }
 
   public void serverSocketSetting() throws IOException {
-    serverSocket.bind(new InetSocketAddress(Inet4Address.getLocalHost(), port),
+    serverSocket.bind(new InetSocketAddress("10.25.0.92", port),
         10); //服务器端绑定本地的 IP 地址和端口号
     serverSocket.setReuseAddress(true); // 设置端口复用
     serverSocket.setReceiveBufferSize(64 * 1024 * 1024); // 设置接收缓冲区为 64M

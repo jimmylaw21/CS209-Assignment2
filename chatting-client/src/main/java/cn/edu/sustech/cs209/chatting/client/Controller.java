@@ -89,7 +89,7 @@ public class Controller implements Initializable {
     //  }
 
     try {
-      client = new ChatClient("10.12.97.44", 8888, this);
+      client = new ChatClient("10.25.0.92", 8888, this);
       new Thread(client).start();
     } catch (IOException e) {
       throw new RuntimeException(e);
