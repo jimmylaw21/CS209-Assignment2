@@ -175,9 +175,10 @@ public class ChatClient implements Runnable {
         controller.onServerShutdown();
         return;
       }
-      if (message.getData().startsWith("ClientCount:")){
+      if (message.getData().startsWith("ClientCount:")) {
         controller.updateCurrentOnlineCnt(message.getData()
             .substring("ClientCount:".length()));
+        return;
       }
     }
     controller.addNewMessage(message);

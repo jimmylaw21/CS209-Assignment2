@@ -17,7 +17,7 @@
 
 <!--中文注释-->
 
-<VBox prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="cn.edu.sustech.cs209.chatting.client.Controller">
+<VBox prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="cn.edu.sustech.cs209.chatting.client.Controller">
     <MenuBar style="-fx-background-color: #867070;" VBox.vgrow="NEVER">
         <Menu mnemonicParsing="false" text="New Chat"> <!-- Chat菜单 -->
             <MenuItem mnemonicParsing="false" onAction="#createPrivateChat" text="New Private Chat" /> <!-- PrivateChat菜单 -->

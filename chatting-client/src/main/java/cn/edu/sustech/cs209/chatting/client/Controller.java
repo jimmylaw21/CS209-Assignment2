@@ -89,7 +89,7 @@ public class Controller implements Initializable {
     //  }
 
     try {
-      client = new ChatClient("10.25.0.92", 8888, this);
+      client = new ChatClient("10.12.97.44", 8888, this);
       new Thread(client).start();
     } catch (IOException e) {
       throw new RuntimeException(e);
@@ -111,6 +111,7 @@ public class Controller implements Initializable {
             }
             chatContentList.getItems().clear();
             chatContentList.getItems().setAll(newValue.getMessages());
+            newValue.setHasUnreadMessages(false);
           } else {
             chatContentList.getItems().clear(); // 如果没有选中任何群组，仍然清空chatContentList
           }
@@ -247,15 +248,16 @@ public class Controller implements Initializable {
 
   @FXML
   public void showGroupMember() {
-    Stage stage = new Stage(); //新建一个舞台
     ListView<String> userList = new ListView<>(); //新建一个列表视图
-    userList.getItems().addAll(chatList.getSelectionModel().getSelectedItem().getChatMembers()); //将用户列表添加到列表视图中
+    userList.getItems().addAll(chatList.getSelectionModel().getSelectedItem()
+        .getChatMembers()); //将用户列表添加到列表视图中
 
     //展示选中群组成员
     VBox box = new VBox(10); //新建一个垂直盒子
     box.setAlignment(Pos.CENTER); //设置盒子的对齐方式
     box.setPadding(new Insets(30, 30, 30, 30)); //设置盒子的内边距
     box.getChildren().addAll(userList);   //将列表视图添加到盒子中
+    Stage stage = new Stage(); //新建一个舞台
     stage.setScene(new Scene(box)); //设置舞台的场景
     stage.showAndWait(); //显示舞台并等待
   }
@@ -270,7 +272,6 @@ public class Controller implements Initializable {
    */
   @FXML
   public void doSendMessage() throws IOException {
-
     String messageText = inputArea.getText().trim();
     if (messageText.isEmpty()) {
       return;
@@ -287,7 +288,7 @@ public class Controller implements Initializable {
     inputArea.clear();
   }
 
-  private void initEmoji(){
+  private void initEmoji() {
     emojiList = new ArrayList<>();
     String[] emojis = {"😀", "😃", "😄", "😁", "😆", "😅", "😂", "🤣", "😊", "😇"};
     emojiList.addAll(Arrays.asList(emojis));
@@ -532,6 +533,10 @@ public class Controller implements Initializable {
           // 设置单元格的背景颜色
           if (isSelected()) {
             setStyle("-fx-background-color: #ADD8E6;"); // 选中颜色，例如浅蓝色
+          //检查群组的未读消息数，如果大于0，设置背景颜色为黄色
+          } else if (chatGroup != null && chatGroup.isHasUnreadMessages()) {
+            // 例如，粉红色
+            setStyle("-fx-background-color: #F5EBEB;");
           } else {
             // 奇偶行的背景颜色不同，以便区分
             if (getIndex() % 2 == 0) {
@@ -577,7 +582,8 @@ public class Controller implements Initializable {
   public void sendGroup(ChatGroup chatGroup) {
     try {
       Group group = new Group(chatGroup.getCreator(),
-          chatGroup.getChatName(), chatGroup.getChatMembers(), chatGroup.getGroupType());
+          chatGroup.getChatName(), chatGroup.getChatMembers(), chatGroup.getGroupType(),
+          chatGroup.isHasUnreadMessages());
       //将chatGroup中的消息加进group中
       for (Message message : chatGroup.getMessages()) {
         group.addMessage(message);
@@ -802,6 +808,7 @@ public class Controller implements Initializable {
       chatList.getItems().forEach(chatGroup -> {
         if (chatGroup.getChatName().equals(message.getSendTo())) {
           chatGroup.addMessage(message);
+          chatGroup.setHasUnreadMessages(true);
           onReceiveMessage(message);
         }
       });

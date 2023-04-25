@@ -17,6 +17,7 @@ public class ChatGroup implements Comparable<ChatGroup> {
   private GroupType groupType;
   private List<String> chatMembers;
   private ObservableList<Message> messages;
+  private boolean hasUnreadMessages;
 
   /**
    * Constructs a new ChatGroup with the specified creator, chat name, chat members, and group type.
@@ -32,6 +33,7 @@ public class ChatGroup implements Comparable<ChatGroup> {
     this.chatMembers = chatMembers;
     this.messages = FXCollections.observableArrayList();
     this.groupType = groupType;
+    this.hasUnreadMessages = false;
   }
 
   /**
@@ -45,6 +47,7 @@ public class ChatGroup implements Comparable<ChatGroup> {
     this.chatMembers = group.getGroupMembers();
     this.messages = FXCollections.observableArrayList(group.getGroupMessages());
     this.groupType = group.getGroupType();
+    this.hasUnreadMessages = group.isHasUnreadMessages();
   }
 
   /**
@@ -120,6 +123,14 @@ public class ChatGroup implements Comparable<ChatGroup> {
 
   public void setGroupType(GroupType groupType) {
     this.groupType = groupType;
+  }
+
+  public boolean isHasUnreadMessages() {
+    return hasUnreadMessages;
+  }
+
+  public void setHasUnreadMessages(boolean hasUnreadMessages) {
+    this.hasUnreadMessages = hasUnreadMessages;
   }
 
   /**
