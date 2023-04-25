@@ -533,10 +533,9 @@ public class Controller implements Initializable {
           // 设置单元格的背景颜色
           if (isSelected()) {
             setStyle("-fx-background-color: #ADD8E6;"); // 选中颜色，例如浅蓝色
-          //检查群组的未读消息数，如果大于0，设置背景颜色为黄色
           } else if (chatGroup != null && chatGroup.isHasUnreadMessages()) {
             // 例如，粉红色
-            setStyle("-fx-background-color: #F5EBEB;");
+            setStyle("-fx-background-color: #D14D72;");
           } else {
             // 奇偶行的背景颜色不同，以便区分
             if (getIndex() % 2 == 0) {
