@@ -162,7 +162,7 @@ public class Controller implements Initializable {
 
     String selectedUser = user.get();
     boolean chatExists = false;
-    if (selectedUser == null && selectedUser.equals(client.username) && user == null) {
+    if (selectedUser == null || selectedUser.equals(client.username)) {
       return;
     }
     for (ChatGroup chatGroup : chatList.getItems()) {
@@ -219,9 +219,11 @@ public class Controller implements Initializable {
     stage.showAndWait(); //显示舞台并等待
 
     List<String> selectedUsers = users.get();
-    if (selectedUsers == null) {
+    if (selectedUsers.isEmpty() || selectedUsers == null) {
+      System.out.println("Group creation dialog closed unexpectedly, skipping");
       return;
     }
+
     boolean chatExists = false;
     for (ChatGroup chatGroup : chatList.getItems()) {
       if (chatGroup.getChatMembers().contains(client.username) 
@@ -650,6 +652,14 @@ public class Controller implements Initializable {
     });
 
     Optional<Pair<String, String>> input = dialog.showAndWait();
+
+    if (!input.isPresent()) {
+      System.out.println("Dialog closed unexpectedly, exiting");
+      Platform.exit();
+      System.exit(0);
+      return;
+    }
+
     sendMessage("AllClientNames", "Server");
 
     lock.lock();
